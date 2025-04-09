@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Demo Banking App by PerfTesters</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="flex bg-gray-100">
+  <!-- Sidebar -->
+  <aside class="w-64 bg-white shadow-md p-4 flex flex-col space-y-4 min-h-screen">
+    <h1 class="text-2xl font-bold text-blue-700">Demo Banking App</h1>
+    <p class="text-sm text-gray-500 mb-2">
+      by <a href="https://perftesters.com" target="_blank" class="text-blue-500 underline">PerfTesters.com</a>
+    </p>
+
+    <nav class="flex flex-col space-y-2">
+      <button onclick="showSection('register')" class="nav-btn">Register</button>
+      <button onclick="showSection('login')" class="nav-btn">Login</button>
+      <button onclick="getBalance()" class="nav-btn">Check Balance</button>
+      <button onclick="showSection('payment')" class="nav-btn">Make Payment</button>
+      <button onclick="getTransactions()" class="nav-btn">Transactions</button>
+      <button onclick="logout()" class="nav-btn bg-red-500 hover:bg-red-600">Logout</button>
+    </nav>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="flex-1 p-6">
+    <!-- Message Banner -->
+    <div id="message" class="mb-4"></div>
+
+    <!-- Register Section -->
+    <div id="register" class="hidden max-w-md">
+      <h2 class="text-xl font-semibold mb-2">Register</h2>
+      <input id="regUsername" type="text" placeholder="Username" class="input" />
+      <input id="regPassword" type="password" placeholder="Password" class="input" />
+      <button onclick="register()" class="btn bg-blue-600">Register</button>
+    </div>
+
+    <!-- Login Section -->
+    <div id="login" class="hidden max-w-md">
+      <h2 class="text-xl font-semibold mb-2">Login</h2>
+      <input id="logUsername" type="text" placeholder="Username" class="input" />
+      <input id="logPassword" type="password" placeholder="Password" class="input" />
+      <button onclick="login()" class="btn bg-green-600">Login</button>
+    </div>
+
+    <!-- Payment Section -->
+    <div id="payment" class="hidden max-w-md">
+      <h2 class="text-xl font-semibold mb-2">Make Payment</h2>
+      <input id="toUserId" type="text" placeholder="To User ID" class="input" />
+      <input id="amount" type="number" placeholder="Amount" class="input" />
+      <button onclick="makePayment()" class="btn bg-orange-600">Send</button>
+    </div>
+
+    <!-- Transactions Section -->
+    <div id="transactions" class="hidden max-w-2xl">
+      <h2 class="text-xl font-semibold mb-2">Transaction History</h2>
+      <ul id="txList" class="list-disc pl-5"></ul>
+    </div>
+  </main>
+
+  <style>
+    .input {
+      display: block;
+      width: 100%;
+      margin-bottom: 0.75rem;
+      padding: 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 0.375rem;
+    }
+
+    .btn {
+      padding: 0.5rem 1rem;
+      color: white;
+      border-radius: 0.375rem;
+      margin-bottom: 1rem;
+    }
+
+    .nav-btn {
+      background-color: #3b82f6;
+      color: white;
+      padding: 0.5rem;
+      border-radius: 0.375rem;
+      text-align: left;
+      transition: background-color 0.2s ease;
+    }
+
+    .nav-btn:hover {
+      background-color: #2563eb;
+    }
+  </style>
+
+  <script>
+    let token = '';
+
+    function showSection(id) {
+      ['register', 'login', 'payment', 'transactions'].forEach(s => {
+        document.getElementById(s).classList.add('hidden');
+      });
+      document.getElementById(id).classList.remove('hidden');
+    }
+
+    function showMessage(message, success = true) {
+      const msg = document.getElementById('message');
+      msg.innerHTML = `<div class="px-4 py-2 rounded text-white ${success ? 'bg-green-600' : 'bg-red-600'}">${message}</div>`;
+      setTimeout(() => { msg.innerHTML = ''; }, 10000);
+    }
+
+    function validateFields(username, password) {
+      if (!username || !password) {
+        showMessage('Username and password are required', false);
+        return false;
+      }
+      if (username.length < 3 || password.length < 3) {
+        showMessage('Username and password must be at least 3 characters', false);
+        return false;
+      }
+      return true;
+    }
+
+    async function register() {
+      const username = document.getElementById('regUsername').value;
+      const password = document.getElementById('regPassword').value;
+      if (!validateFields(username, password)) return;
+
+      const res = await fetch('/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json();
+      showMessage(data.message, res.ok);
+    }
+
+    async function login() {
+      const username = document.getElementById('logUsername').value;
+      const password = document.getElementById('logPassword').value;
+      if (!validateFields(username, password)) return;
+
+      const res = await fetch('/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        token = data.token;
+        showMessage('Login successful');
+      } else {
+        showMessage(data.message || 'Login failed', false);
+      }
+    }
+
+    async function getBalance() {
+      const res = await fetch('/balance', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      showMessage(`Balance: ₹${data.balance}`, res.ok);
+    }
+
+    async function makePayment() {
+      const toUserId = document.getElementById('toUserId').value;
+      const amount = document.getElementById('amount').value;
+
+      if (!toUserId || !amount || amount <= 0) {
+        showMessage('Invalid payment details', false);
+        return;
+      }
+
+      const res = await fetch('/payment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ toUserId, amount })
+      });
+      const data = await res.json();
+      showMessage(data.message, res.ok);
+    }
+
+    async function getTransactions() {
+      const res = await fetch('/transactions', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      const list = document.getElementById('txList');
+      list.innerHTML = '';
+      data.transactions.forEach(tx => {
+        list.innerHTML += `<li>From: ${tx.fromUserId} → To: ${tx.toUserIdId} | ₹${tx.amount} on ${new Date(tx.timestamp).toLocaleString()}</li>`;
+      });
+      showSection('transactions');
+    }
+
+    function logout() {
+      token = '';
+      showMessage('Logged out');
+    }
+  </script>
+</body>
+</html>
